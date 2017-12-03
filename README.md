@@ -1,7 +1,11 @@
 # deanonymizing
 CS 6150 Project
 
-Using [Snap.py](https://snap.stanford.edu/snappy/index.html) ([docs](https://snap.stanford.edu/snappy/doc/index.html))
+Using [Snap.py](https://snap.stanford.edu/snappy/index.html) ([docs](https://snap.stanford.edu/snappy/doc/index.html)) (Justin)
+
+Or other Python libs (Dallin)
+
+Or Java from scratch (Ned)
 
 Implementing the algorithm described by "Wherefore Art Thou R3579X? Anonymized Social Networks, Hidden Patterns, and Structural Steganography" by Lars Backstrom, Cynthia Dwork, and Jon Kleinberg
 
