@@ -65,16 +65,16 @@ def brute_force_deanonymize(G, subG, node):
 if __name__ == "__main__":
     if(len(sys.argv)==2 or len(sys.argv)==3):
         G = get_graph_from_csv(sys.argv[1])
-        print "Nodes: ",G.number_of_nodes()
-        print "Edges: ",G.number_of_edges()
+        print("Nodes: ",G.number_of_nodes())
+        print("Edges: ",G.number_of_edges())
         chosen_node = sys.argv[2] if len(sys.argv)==3 else random.choice(list(G.nodes))
-        print "Node to 'deanonymize': ", chosen_node
+        print("Node to 'deanonymize': ", chosen_node)
         subG = get_n_subgraph(G,chosen_node,2)
         matches = brute_force_deanonymize(G, subG, chosen_node)
         if(len(matches)==0):
-            print "No matches found"
+            print("No matches found")
         else:
-            print "Matches found"
-            print matches
+            print("Matches found")
+            print(matches)
     else:
-        print "Usage: python file-to-graph.py [filename] [node to check (if any)]"
+        print("Usage: python file-to-graph.py [filename] [node to check (if any)]")
