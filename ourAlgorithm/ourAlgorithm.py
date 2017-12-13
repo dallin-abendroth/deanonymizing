@@ -51,6 +51,27 @@ def do_neighborhoods_match(subG, node, candidate_subG, candidate):
                     return True
     return False
 
+def coalition_neighbors(G,coalition_nodes):
+    neighbors = []
+    for node in coalition_nodes:
+        neighbors.extend(list(G.neighbors(node)))
+    return neighbors
+
+def make_coalition(G,attacker,k):
+    coalition = [attacker]
+    while len(coalition)<k:
+        potential_recruits = coalition_neighbors(G, coalition)
+        if(len(potential_recruits)==0):
+            return coalition
+        new_member = random.choice(coalition_neighbors(G, coalition))
+        coalition.append(new_member)
+    return coalition
+
+def node_with_max_degree(G,nodes):
+    node_degrees = G.degree(nodes)
+    node_degrees = dict((x,y) for x, y in node_degrees)
+    return max(node_degrees, key=node_degrees.get)
+
 # Counting only 'out-edges' 
 def brute_force_deanonymize(G, subG, node):
     matches_in_g = []
@@ -67,14 +88,27 @@ if __name__ == "__main__":
         G = get_graph_from_csv(sys.argv[1])
         print("Nodes: ",G.number_of_nodes())
         print("Edges: ",G.number_of_edges())
-        chosen_node = sys.argv[2] if len(sys.argv)==3 else random.choice(list(G.nodes))
-        print("Node to 'deanonymize': ", chosen_node)
-        subG = get_n_subgraph(G,chosen_node,2)
+        initial_attacker = sys.argv[2] if len(sys.argv)==3 else random.choice(list(G.nodes))
+        coalition = make_coalition(G, initial_attacker, 3)
+        print("Coalition of 'deanonymizers':")
+        print(coalition)
+        known_nodes = coalition
+        known_nodes.extend(coalition_neighbors(G,coalition))
+        chosen_node = node_with_max_degree(G,known_nodes) # <-- potential for choosing the 'optimal' node here, may not be biggest degree
+        subG = nx.subgraph(G, known_nodes)
         matches = brute_force_deanonymize(G, subG, chosen_node)
         if(len(matches)==0):
             print("No matches found")
         else:
-            print("Matches found")
-            print(matches)
+            if(len(matches)!=1):
+                print(len(matches)," matches found")
+            else:
+                print("Attack Successful, we found ", matches[0])
+                compromised_nodes = coalition_neighbors(G, subG)
+                if(len(compromised_nodes)>0):
+                    print("Compromised ", len(compromised_nodes)," identities!")
+                    #print(compromised_nodes)
+                else:
+                    print("Unable to compromise any identities.")
     else:
         print("Usage: python file-to-graph.py [filename] [node to check (if any)]")
