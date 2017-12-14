@@ -1,0 +1,30 @@
+Companion data and scripts for the paper "Evidences of Identity Between Social and Mobility Networks", currently under review.
+
+In the pack there are five folders and two files.
+
+- File "README": The file you are reading right now!
+
+- File "code_municipio": A two-column tab-separated file mapping the municipio code to the name of the municipio in Colombia.
+
+- Folders "social" and "mobility": These two folders contain equivalent files to construct the social and mobility networks of Colombia from the respective adjacency matrices, and to calculate the clusters. Each folder contains (substitute '*' with the folder name):
+  - File "city_city_nedges_*": The adjacency matrix. A three-column tab-separated file: municipio of origin, municipio of destination, weight of the link.
+  - File "run_analysis.sh": Executable bash script (tested on Ubuntu 15.04). It will invoke all scripts and produce networks and clusters. Just type "./run_analysis.sh" in the terminal. When running "run_analysis.sh" the networks created will be identical to the ones analyzed in the paper. Results of Infomap might slightly differ due to its random walk strategy, but differences should be minimal (e.g. +/- 0.01 in Normalized Mutual Information with K-Means clusters).
+  - File "run_clusters.sh": Executable bash script (tested on Ubuntu 15.04). It will calculate network clusters, provided that the correct networks have been generated. Just type "./run_clusters.sh" in the terminal.
+  - File "Infomap": The binary program running the Infomap community discovery. Downloaded and compiled from http://www.mapequation.org/code.html (current Infomap code might differ from the binary used here).
+  - File "maximum_spanning_tree.py": Python script implementing Kruskal algorithm.
+  - File "backbone.py": Python script implementing the network backboning algorithm described in Serrano et al. "Extracting the multiscale backbone of complex weighted networks" (http://www.pnas.org/content/106/16/6483.short).
+  - File "net-mat_clustering_agreement.py": Python script running K-Means on the full adjacency matrix and returning the agreement of the clusters with the network clusters (with a variety of measures).
+  - File "colombia_*.cys": Cytoscape session file containing the network visualization used in the paper.
+  - File "colombia_*.png": The network visualization used in the paper.
+
+- Folder "scaling": Contains the script to rescale the social network using the distance mobility scaling. The folder contains:
+  - File "distance_msratio.py": Takes as input the distances between municipalities and calculates the M / S scaling for each distance.
+  - File "rescale_social.py": Performs the S' = S x f(d) operation described in the paper.
+  - File "mob-socresc_clustering_agreement.py": Python script comparing the S' clusters with the mobility clusters (with a variety of measures).
+  - All other files are equivalent to their counterparts in the "social" and "mobility" folders. Note that running "run_analysis.sh" here before running it in the mobility folder will cause errors, because it expects to find the computed mobility clusters for comparisons.
+
+- Folder "inclusion_test": Contains the scripts to test the inclusion hypothesis. The hypothesis states that any subset of social edges will generate the observed mobility clusters. Running "run_analysis.sh" on the test will generate 100 random social edge subsets and show that the expected normalized mutual information with the observed mobility clusters is zero. The NMI values will be stored in a file called "mobility_random_nmis".
+
+- Folder "statistical_test": Contains the scripts to test the statistical robustness of our edge filtering technique. The script "run_analysis.sh" will generate social and mobility networks using various multiple test hypothesis corrections: Holm-Bonferroni, Sidak and Hochberg. The clusters obtained from these strict test are tested against the clusters obtained in our study and show a very high normalized mutual information, proving that our results are statistically robust.
+
+NOTE: The Python scripts will require the installation of the Scikit-Learn library (http://scikit-learn.org/stable/), which in turn will probably want Numpy (http://www.numpy.org/) and Scipy (http://www.scipy.org/). The script were developed using Python 2 (not 3).
