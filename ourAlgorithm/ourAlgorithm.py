@@ -7,6 +7,32 @@ source_i = 0
 dest_i = 1
 wght_i = 2
 
+class TreeNode(object):
+    """Tree class made for quick convenience"""
+    def __init__(self, name, parent=None):
+        self.parent = parent
+        self.name = name
+        self.children = {}
+    def add(self, childname):
+        if(childname not in self.children):
+            child = TreeNode(childname, self)
+            self.children[childname] = child
+    def get(self, childname):
+        if(childname in self.children):
+            return self.children[childname]
+    def leaf_nodes(self):
+        if(not self.children):
+            return [self]
+        leaf_nodes = []
+        for child in self.children:
+            leaf_nodes = leaf_nodes+self.children[child].leaf_nodes()
+        return leaf_nodes
+    def path_to_root(self):
+        path = [self.name]
+        if(self.parent!=None):
+            path = path + self.parent.path_to_root()
+        return path
+
 def get_graph_from_csv(filename):
     G = nx.DiGraph()
     with open(filename, 'r') as csvfile:
@@ -19,42 +45,11 @@ def get_graph_from_csv(filename):
             G.add_edges_from(edge)
     return G
 
-def get_n_subgraph_nodes(G,node,n):
-    subgraphNodes = [node]
-    if(n==0):
-        return subgraphNodes
-    neighbors = list(G.neighbors(node))
-    for neighbor in neighbors:
-        neighbor_nodes = get_n_subgraph_nodes(G,neighbor,n-1)
-        subgraphNodes.extend(neighbor_nodes)
-    return subgraphNodes
-
-def get_n_subgraph(G,node,n):
-    subgraphNodes = get_n_subgraph_nodes(G,node,n)
-    return nx.subgraph(G, subgraphNodes)
-
-def do_neighborhoods_match(subG, node, candidate_subG, candidate):
-    if(subG.out_degree[node]==0):
-        # Base case: every neighbor of node found a match with a neighbor of candidate
-        return True
-    for node_neighbor in list(subG.neighbors(node)):
-        for cand_neighbor in list(candidate_subG.neighbors(candidate)):
-            if(subG.out_degree[node_neighbor]==candidate_subG.out_degree[cand_neighbor]):
-                # Remove potential 'match' and check the rest
-                subG_copy = subG.copy()
-                subG_copy.remove_node(node_neighbor)
-
-                cand_subG_copy = candidate_subG.copy()
-                cand_subG_copy.remove_node(cand_neighbor)
-
-                if(do_neighborhoods_match(subG_copy, node, cand_subG_copy, candidate)):
-                    return True
-    return False
-
 def coalition_neighbors(G,coalition_nodes):
     neighbors = []
     for node in coalition_nodes:
-        neighbors.extend(list(G.neighbors(node)))
+        neighbors.extend(list(G.successors(node)))
+        neighbors.extend(list(G.predecessors(node)))
     return neighbors
 
 def make_coalition(G,attacker,k):
@@ -72,16 +67,39 @@ def node_with_max_degree(G,nodes):
     node_degrees = dict((x,y) for x, y in node_degrees)
     return max(node_degrees, key=node_degrees.get)
 
-# Counting only 'out-edges' 
-def brute_force_deanonymize(G, subG, node):
-    matches_in_g = []
-    node_degree = subG.out_degree[node] 
+def extract_matches(tree,k):
+    matches = []
+    for leaf in tree.leaf_nodes():
+        path = leaf.path_to_root()
+        if(len(path)==k+1):
+            path.remove('base')
+            matches.append(path)
+    return matches
+
+def tree_search(G,H,node):
+    T = TreeNode('base')
     for candidate in list(G.nodes):
-        if(G.out_degree[candidate]==node_degree):
-            candidate_neighborhood = get_n_subgraph(G,candidate,2)
-            if(do_neighborhoods_match(subG, node, candidate_neighborhood, candidate)):
-                matches_in_g.append(candidate)
-    return matches_in_g
+        tree_search_rec(G,H,T,candidate,node) 
+    k = len(list(H.nodes))
+    return extract_matches(T,k)
+
+def tree_search_rec(G,H,T,candidate_node,x):
+    x_out_degree = subG.nodes[x]['orig_out_degree'] 
+    x_in_degree = subG.nodes[x]['orig_in_degree'] 
+    if(G.out_degree[candidate_node]==x_out_degree # check out degrees
+            or G.in_degree[candidate_node]==x_in_degree): # check in degrees
+        for x_nbr in H.successors(x): # check weights of out-edges
+            for cand_nbr in G.successors(candidate_node):
+                if(G[candidate_node][cand_nbr]['weight']==H[x][x_nbr]['weight']):
+                    if(cand_nbr not in T.path_to_root()): # potential nodes count once
+                        T.add(candidate_node)
+                        tree_search_rec(G,H,T.get(candidate_node),cand_nbr,x_nbr)
+        for x_nbr in H.predecessors(x): # check weights of in-edges
+            for cand_nbr in G.predecessors(candidate_node):
+                if(G[cand_nbr][candidate_node]['weight']==H[x_nbr][x]['weight']):
+                    if(cand_nbr not in T.path_to_root()): # potential nodes count once
+                        T.add(candidate_node)
+                        tree_search_rec(G,H,T.get(candidate_node),cand_nbr,x_nbr)
 
 if __name__ == "__main__":
     if(len(sys.argv)==2 or len(sys.argv)==3):
@@ -89,14 +107,22 @@ if __name__ == "__main__":
         print("Nodes: ",G.number_of_nodes())
         print("Edges: ",G.number_of_edges())
         initial_attacker = sys.argv[2] if len(sys.argv)==3 else random.choice(list(G.nodes))
+        while(len(sys.argv)!=3 and list(G.neighbors(initial_attacker))==0):
+            initial_attacker = random.choice(list(G.nodes))
+
         coalition = make_coalition(G, initial_attacker, 3)
+        print("Initial attacker:")
+        print(initial_attacker)
         print("Coalition of 'deanonymizers':")
         print(coalition)
         known_nodes = coalition
-        known_nodes.extend(coalition_neighbors(G,coalition))
-        chosen_node = node_with_max_degree(G,known_nodes) # <-- potential for choosing the 'optimal' node here, may not be biggest degree
         subG = nx.subgraph(G, known_nodes)
-        matches = brute_force_deanonymize(G, subG, chosen_node)
+        nx.set_node_attributes(subG, 'orig_out_degree', 0)
+        nx.set_node_attributes(subG, 'orig_in_degree', 0)
+        for node in list(subG.nodes):
+            subG.nodes[node]['orig_out_degree'] = G.out_degree[node]
+            subG.nodes[node]['orig_in_degree'] = G.in_degree[node]
+        matches = tree_search(G, subG, initial_attacker)
         if(len(matches)==0):
             print("No matches found")
         else:
@@ -106,9 +132,9 @@ if __name__ == "__main__":
                 print("Attack Successful, we found ", matches[0])
                 compromised_nodes = coalition_neighbors(G, subG)
                 if(len(compromised_nodes)>0):
-                    print("Compromised ", len(compromised_nodes)," identities!")
+                    print("Potentially compromised ", len(compromised_nodes)," identities!")
                     #print(compromised_nodes)
                 else:
-                    print("Unable to compromise any identities.")
+                    print("Unable to potentially compromise any identities.")
     else:
         print("Usage: python file-to-graph.py [filename] [node to check (if any)]")
