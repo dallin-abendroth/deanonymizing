@@ -85,8 +85,6 @@ def tree_search(G,H,node):
 def tree_search_rec(G,H,T,candidate_node,x):
     x_out_degree = subG.nodes[x]['orig_out_degree'] 
     x_in_degree = subG.nodes[x]['orig_in_degree'] 
-    found_x = False
-    found_x_nbr = False
     if(candidate_node in T.path_to_root()): # potential nodes count once
         return
     if(G.out_degree[candidate_node]==x_out_degree # check out-degrees
@@ -140,7 +138,6 @@ if __name__ == "__main__":
                 compromised_nodes = coalition_neighbors(G, subG)
                 if(len(compromised_nodes)>0):
                     print("Potentially compromised ", len(compromised_nodes)," identities!")
-                    #print(compromised_nodes)
                 else:
                     print("Unable to potentially compromise any identities.")
     else:
