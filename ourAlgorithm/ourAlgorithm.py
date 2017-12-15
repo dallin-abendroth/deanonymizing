@@ -28,10 +28,10 @@ class TreeNode(object):
             leaf_nodes = leaf_nodes+self.children[child].leaf_nodes()
         return leaf_nodes
     def path_to_root(self):
-        path = [self.name]
         if(self.parent!=None):
-            path = path + self.parent.path_to_root()
-        return path
+            return [self.name] + self.parent.path_to_root()
+        else:
+            return []
 
 def get_graph_from_csv(filename):
     G = nx.DiGraph()
@@ -71,8 +71,7 @@ def extract_matches(tree,k):
     matches = []
     for leaf in tree.leaf_nodes():
         path = leaf.path_to_root()
-        if(len(path)==k+1):
-            path.remove('base')
+        if(len(path)==k):
             matches.append(path)
     return matches
 
@@ -86,35 +85,43 @@ def tree_search(G,H,node):
 def tree_search_rec(G,H,T,candidate_node,x):
     x_out_degree = subG.nodes[x]['orig_out_degree'] 
     x_in_degree = subG.nodes[x]['orig_in_degree'] 
-    if(G.out_degree[candidate_node]==x_out_degree # check out degrees
-            or G.in_degree[candidate_node]==x_in_degree): # check in degrees
+    found_x = False
+    found_x_nbr = False
+    if(candidate_node in T.path_to_root()): # potential nodes count once
+        return
+    if(G.out_degree[candidate_node]==x_out_degree # check out-degrees
+            and G.in_degree[candidate_node]==x_in_degree): # check in-degrees
         for x_nbr in H.successors(x): # check weights of out-edges
             for cand_nbr in G.successors(candidate_node):
                 if(G[candidate_node][cand_nbr]['weight']==H[x][x_nbr]['weight']):
-                    if(cand_nbr not in T.path_to_root()): # potential nodes count once
-                        T.add(candidate_node)
-                        tree_search_rec(G,H,T.get(candidate_node),cand_nbr,x_nbr)
+                    T.add(candidate_node)
+                    tree_search_rec(G,H,T.get(candidate_node),cand_nbr,x_nbr)
         for x_nbr in H.predecessors(x): # check weights of in-edges
             for cand_nbr in G.predecessors(candidate_node):
                 if(G[cand_nbr][candidate_node]['weight']==H[x_nbr][x]['weight']):
-                    if(cand_nbr not in T.path_to_root()): # potential nodes count once
-                        T.add(candidate_node)
-                        tree_search_rec(G,H,T.get(candidate_node),cand_nbr,x_nbr)
+                    T.add(candidate_node)
+                    tree_search_rec(G,H,T.get(candidate_node),cand_nbr,x_nbr)
 
 if __name__ == "__main__":
-    if(len(sys.argv)==2 or len(sys.argv)==3):
+    if(len(sys.argv)==2 or len(sys.argv)==3 or len(sys.argv)==5):
         G = get_graph_from_csv(sys.argv[1])
         print("Nodes: ",G.number_of_nodes())
         print("Edges: ",G.number_of_edges())
-        initial_attacker = sys.argv[2] if len(sys.argv)==3 else random.choice(list(G.nodes))
-        while(len(sys.argv)!=3 and list(G.neighbors(initial_attacker))==0):
+        initial_attacker = sys.argv[2] if len(sys.argv)>2 else random.choice(list(G.nodes))
+        while(len(sys.argv)>3 and list(G.neighbors(initial_attacker))==0):
             initial_attacker = random.choice(list(G.nodes))
-
-        coalition = make_coalition(G, initial_attacker, 3)
+        coalition = [sys.argv[2], sys.argv[3], sys.argv[4]] if len(sys.argv)==5 else make_coalition(G, initial_attacker, 3)
         print("Initial attacker:")
         print(initial_attacker)
         print("Coalition of 'deanonymizers':")
         print(coalition)
+        print("Out degrees:")
+        coalition_out = [G.out_degree[x] for x in coalition]
+        print(coalition_out)
+        print("In degrees:")
+        coalition_in = [G.in_degree[x] for x in coalition]
+        print(coalition_in)
+
         known_nodes = coalition
         subG = nx.subgraph(G, known_nodes)
         nx.set_node_attributes(subG, 'orig_out_degree', 0)
@@ -137,4 +144,6 @@ if __name__ == "__main__":
                 else:
                     print("Unable to potentially compromise any identities.")
     else:
-        print("Usage: python file-to-graph.py [filename] [node to check (if any)]")
+        print("""Usage: 
+            python file-to-graph.py [csv file to use] [initial attacker]
+            python file-to-graph.py [csv file to use] [initial attacker] [coalition member 2] [coalition member 3]""")
