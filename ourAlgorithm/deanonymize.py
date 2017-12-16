@@ -2,6 +2,7 @@ import networkx as nx
 import csv
 import sys
 import random
+import datetime as dt
 
 source_i = 0
 dest_i = 1
@@ -72,7 +73,7 @@ def coalition_neighbors_directed(G,coalition_nodes):
 def make_coalition(G,attacker,k,coalition_neighbors_fn):
     coalition = [attacker]
     while len(coalition)<k:
-        potential_recruits = coalition_neighbors_fn(G, coalition)
+        potential_recruits = list(coalition_neighbors_fn(G, coalition))
         if(len(potential_recruits)==0):
             return coalition
         new_member = random.choice(potential_recruits)
@@ -145,7 +146,8 @@ def deanonymize_weighted_directed(G,k,given_coalition):
     setup_H_subgraph_directed(G, subG)
     matches = tree_search(G, subG, initial_attacker, tree_search_rec_directed)
     if(len(matches)==0):
-        print("!!! zero matches found, this should be impossible !!!")
+        print("!!! zero matches found, this should be impossible. Coalition below !!!")
+        print(' '.join(coalition))
     if(len(matches)!=1):
         return 0
     return len(coalition_neighbors_directed(G, subG))
@@ -209,13 +211,18 @@ if __name__ == "__main__":
         print("k = ",k)
         G = get_simple_graph_from_csv(sys.argv[1])
         results = []
+        timings = []
         for i in range(0,times_to_run):
+            start = dt.datetime.now()
             results.append(deanonymize_simple(G,k,given_coalition))
+            timings.append(dt.datetime.now()-start)
         avg = sum(results) / float(len(results))
+        avgtime = sum(timings) / float(len(timings))
         prob_success = (len(results) - results.count(0)) / float(len(results))
         if(times_to_run>1):
             print("avg = ",avg)
             print("probability of success = ",prob_success)
+            print("avg time = ",avgtime)
         else:
             print("Deanonymized nodes: ",results[0])
         print("--------------------------------")
@@ -229,13 +236,18 @@ if __name__ == "__main__":
         print("k = ",k)
         G = get_weighted_directed_graph_from_csv(sys.argv[1])
         results = []
+        timings = []
         for i in range(0,times_to_run):
+            start = dt.datetime.now()
             results.append(deanonymize_weighted_directed(G,k,given_coalition))
+            timings.append(dt.datetime.now()-start)
         avg = sum(results) / float(len(results))
+        avgtime = sum(timings) / float(len(timings))
         prob_success = (len(results) - results.count(0)) / float(len(results))
         if(times_to_run>1):
             print("avg = ",avg)
             print("probability of success = ",prob_success)
+            print("avg time = ",avgtime)
         else:
             print("Deanonymized nodes: ",results[0])
         print("--------------------------------")
