@@ -33,7 +33,7 @@ class TreeNode(object):
         else:
             return []
 
-def get_graph_from_csv(filename):
+def get_weighted_directed_graph_from_csv(filename):
     G = nx.DiGraph()
     with open(filename, 'r') as csvfile:
         datareader = csv.reader(csvfile)
@@ -45,27 +45,39 @@ def get_graph_from_csv(filename):
             G.add_edges_from(edge)
     return G
 
-def coalition_neighbors(G,coalition_nodes):
+def get_simple_graph_from_csv(filename):
+    G = nx.Graph()
+    with open(filename, 'r') as csvfile:
+        datareader = csv.reader(csvfile)
+        for entry in datareader:
+            source = entry[source_i]
+            dest = entry[dest_i]
+            edge = [(source, dest)]
+            G.add_edges_from(edge)
+    return G
+
+def coalition_neighbors_simple(G,coalition_nodes):
+    neighbors = []
+    for node in coalition_nodes:
+        neighbors.extend(list(G.neighbors(node)))
+    return neighbors
+
+def coalition_neighbors_directed(G,coalition_nodes):
     neighbors = []
     for node in coalition_nodes:
         neighbors.extend(list(G.successors(node)))
         neighbors.extend(list(G.predecessors(node)))
     return neighbors
 
-def make_coalition(G,attacker,k):
+def make_coalition(G,attacker,k,coalition_neighbors_fn):
     coalition = [attacker]
     while len(coalition)<k:
-        potential_recruits = coalition_neighbors(G, coalition)
+        potential_recruits = coalition_neighbors_fn(G, coalition)
         if(len(potential_recruits)==0):
             return coalition
-        new_member = random.choice(coalition_neighbors(G, coalition))
+        new_member = random.choice(potential_recruits)
         coalition.append(new_member)
     return coalition
-
-def node_with_max_degree(G,nodes):
-    node_degrees = G.degree(nodes)
-    node_degrees = dict((x,y) for x, y in node_degrees)
-    return max(node_degrees, key=node_degrees.get)
 
 def extract_matches(tree,k):
     matches = []
@@ -75,16 +87,16 @@ def extract_matches(tree,k):
             matches.append(path)
     return matches
 
-def tree_search(G,H,node):
+def tree_search(G,H,node,tree_search_rec_fn):
     T = TreeNode('base')
     for candidate in list(G.nodes):
-        tree_search_rec(G,H,T,candidate,node) 
+        tree_search_rec_fn(G,H,T,candidate,node) 
     k = len(list(H.nodes))
     return extract_matches(T,k)
 
-def tree_search_rec(G,H,T,candidate_node,x):
-    x_out_degree = subG.nodes[x]['orig_out_degree'] 
-    x_in_degree = subG.nodes[x]['orig_in_degree'] 
+def tree_search_rec_directed(G,H,T,candidate_node,x):
+    x_out_degree = H.nodes[x]['orig_out_degree'] 
+    x_in_degree = H.nodes[x]['orig_in_degree'] 
     if(candidate_node in T.path_to_root()): # potential nodes count once
         return
     if(G.out_degree[candidate_node]==x_out_degree # check out-degrees
@@ -93,54 +105,113 @@ def tree_search_rec(G,H,T,candidate_node,x):
             for cand_nbr in G.successors(candidate_node):
                 if(G[candidate_node][cand_nbr]['weight']==H[x][x_nbr]['weight']):
                     T.add(candidate_node)
-                    tree_search_rec(G,H,T.get(candidate_node),cand_nbr,x_nbr)
+                    tree_search_rec_directed(G,H,T.get(candidate_node),cand_nbr,x_nbr)
         for x_nbr in H.predecessors(x): # check weights of in-edges
             for cand_nbr in G.predecessors(candidate_node):
                 if(G[cand_nbr][candidate_node]['weight']==H[x_nbr][x]['weight']):
                     T.add(candidate_node)
-                    tree_search_rec(G,H,T.get(candidate_node),cand_nbr,x_nbr)
+                    tree_search_rec_directed(G,H,T.get(candidate_node),cand_nbr,x_nbr)
 
+def tree_search_rec_simple(G,H,T,candidate_node,x):
+    x_degree = H.nodes[x]['orig_degree'] 
+    if(candidate_node in T.path_to_root()): # potential nodes count once
+        return
+    if(G.degree[candidate_node]==x_degree): # check degrees
+        for x_nbr in H.neighbors(x): 
+            for cand_nbr in G.neighbors(candidate_node):
+                T.add(candidate_node)
+                tree_search_rec_simple(G,H,T.get(candidate_node),cand_nbr,x_nbr)
+
+def setup_H_subgraph_directed(G, subG):
+    nx.set_node_attributes(subG, 'orig_out_degree', 0)
+    nx.set_node_attributes(subG, 'orig_in_degree', 0)
+    for node in list(subG.nodes):
+        subG.nodes[node]['orig_out_degree'] = G.out_degree[node]
+        subG.nodes[node]['orig_in_degree'] = G.in_degree[node]
+
+def setup_H_subgraph_simple(G, subG):
+    nx.set_node_attributes(subG, 'orig_degree', 0)
+    for node in list(subG.nodes):
+        subG.nodes[node]['orig_degree'] = G.degree[node]
+
+def deanonymize_weighted_directed(G,k,given_coalition):
+    initial_attacker = random.choice(list(G.nodes))
+    coalition = make_coalition(G, initial_attacker, k, coalition_neighbors_directed)
+    if(len(given_coalition)>0):
+        initial_attacker = given_coalition[0]
+        coalition = given_coalition
+    subG = nx.subgraph(G, coalition)
+    setup_H_subgraph_directed(G, subG)
+    matches = tree_search(G, subG, initial_attacker, tree_search_rec_directed)
+    if(len(matches)!=1):
+        return 0
+    return len(coalition_neighbors_directed(G, subG))
+
+def deanonymize_simple(G,k,given_coalition):
+    initial_attacker = random.choice(list(G.nodes))
+    coalition = make_coalition(G, initial_attacker, k, coalition_neighbors_simple)
+    if(len(given_coalition)>0):
+        initial_attacker = given_coalition[0]
+        coalition = given_coalition
+    subG = nx.subgraph(G, coalition)
+    setup_H_subgraph_simple(G, subG)
+    matches = tree_search(G, subG, initial_attacker, tree_search_rec_simple)
+    if(len(matches)!=1):
+        return 0
+    return len(coalition_neighbors_simple(G, subG))
+
+def print_usage():
+    print("""Usage: 
+        python file-to-graph.py [csv file to use] [simple|directed] random [size of coalition] 
+        python file-to-graph.py [csv file to use] [simple|directed] random [size of coalition] [times to run]
+        python file-to-graph.py [csv file to use] [simple|directed] given-coalition [coalition member 1] ... [coalition member N]""")
+    sys.exit(0)
+    
 if __name__ == "__main__":
-    if(len(sys.argv)==2 or len(sys.argv)==3 or len(sys.argv)==5):
-        G = get_graph_from_csv(sys.argv[1])
-        print("Nodes: ",G.number_of_nodes())
-        print("Edges: ",G.number_of_edges())
-        initial_attacker = sys.argv[2] if len(sys.argv)>2 else random.choice(list(G.nodes))
-        while(len(sys.argv)>3 and list(G.neighbors(initial_attacker))==0):
-            initial_attacker = random.choice(list(G.nodes))
-        coalition = [sys.argv[2], sys.argv[3], sys.argv[4]] if len(sys.argv)==5 else make_coalition(G, initial_attacker, 3)
-        print("Initial attacker:")
-        print(initial_attacker)
-        print("Coalition of 'deanonymizers':")
-        print(coalition)
-        print("Out degrees:")
-        coalition_out = [G.out_degree[x] for x in coalition]
-        print(coalition_out)
-        print("In degrees:")
-        coalition_in = [G.in_degree[x] for x in coalition]
-        print(coalition_in)
+    if(len(sys.argv)<5):
+        print_usage()
+    if(sys.argv[2] != 'simple' and sys.argv[2] != 'directed'):
+        print_usage()
+    if(sys.argv[3] != 'random' and sys.argv[3] != 'given-coalition'):
+        print_usage()
 
-        known_nodes = coalition
-        subG = nx.subgraph(G, known_nodes)
-        nx.set_node_attributes(subG, 'orig_out_degree', 0)
-        nx.set_node_attributes(subG, 'orig_in_degree', 0)
-        for node in list(subG.nodes):
-            subG.nodes[node]['orig_out_degree'] = G.out_degree[node]
-            subG.nodes[node]['orig_in_degree'] = G.in_degree[node]
-        matches = tree_search(G, subG, initial_attacker)
-        if(len(matches)==0):
-            print("No matches found")
-        else:
-            if(len(matches)!=1):
-                print(len(matches)," matches found")
-            else:
-                print("Attack Successful, we found ", matches[0])
-                compromised_nodes = coalition_neighbors(G, subG)
-                if(len(compromised_nodes)>0):
-                    print("Potentially compromised ", len(compromised_nodes)," identities!")
-                else:
-                    print("Unable to potentially compromise any identities.")
-    else:
-        print("""Usage: 
-            python file-to-graph.py [csv file to use] [initial attacker]
-            python file-to-graph.py [csv file to use] [initial attacker] [coalition member 2] [coalition member 3]""")
+    given_coalition = []
+    if(sys.argv[3]=='given-coalition'):
+        member_index = 4
+        while(member_index<len(sys.argv)):
+            given_coalition.append(sys.argv[member_index])
+            member_index+=1
+
+    k = len(given_coalition)
+    if(k==0):
+        try:
+            k = int(sys.argv[4])
+        except:
+            print_usage()
+
+    times_to_run = 1
+    if(len(sys.argv)==6):
+        try:
+            times_to_run = int(sys.argv[5])
+        except:
+            print_usage()
+
+    if(sys.argv[2]=='simple'):
+        print("--------------------------------")
+        print("Running simple algorithm ",times_to_run," time(s) on dataset: ",sys.argv[1])
+        print("k = ",k)
+        G = get_simple_graph_from_csv(sys.argv[1])
+        for i in range(0,times_to_run):
+            print("Deanonymized nodes: ",deanonymize_simple(G,k,given_coalition))
+        sys.exit(0)
+    
+    if(sys.argv[2]=='directed'):
+        print("--------------------------------")
+        print("Running weighted, directed algorithm ",times_to_run," time(s) on dataset: ",sys.argv[1])
+        print("k = ",k)
+        G = get_weighted_directed_graph_from_csv(sys.argv[1])
+        for i in range(0,times_to_run):
+            print("Deanonymized nodes: ",deanonymize_weighted_directed(G,k,given_coalition))
+        sys.exit(0)
+
+    print_usage()
