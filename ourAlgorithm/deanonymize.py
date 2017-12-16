@@ -286,7 +286,9 @@ def print_usage():
     print("""Usage: 
         python deanonymize.py [csv file to use] [simple|directed] random [size of coalition] 
         python deanonymize.py [csv file to use] [simple|directed] random [size of coalition] [times to run]
-        python deanonymize.py [csv file to use] [simple|directed] given-coalition [coalition member 1] ... [coalition member N]""")
+        python deanonymize.py [csv file to use] [simple|directed] given-coalition [coalition member 1] ... [coalition member N]
+        
+        NOTE: coalition must consist of a 'path' through the dataset for correctness""")
     sys.exit(0)
     
 multiple_matches_failure = False
