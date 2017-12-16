@@ -60,14 +60,14 @@ def coalition_neighbors_simple(G,coalition_nodes):
     neighbors = []
     for node in coalition_nodes:
         neighbors.extend(list(G.neighbors(node)))
-    return neighbors
+    return set(neighbors)
 
 def coalition_neighbors_directed(G,coalition_nodes):
     neighbors = []
     for node in coalition_nodes:
         neighbors.extend(list(G.successors(node)))
         neighbors.extend(list(G.predecessors(node)))
-    return neighbors
+    return set(neighbors)
 
 def make_coalition(G,attacker,k,coalition_neighbors_fn):
     coalition = [attacker]
@@ -76,7 +76,8 @@ def make_coalition(G,attacker,k,coalition_neighbors_fn):
         if(len(potential_recruits)==0):
             return coalition
         new_member = random.choice(potential_recruits)
-        coalition.append(new_member)
+        if(new_member not in coalition):
+            coalition.append(new_member)
     return coalition
 
 def extract_matches(tree,k):
@@ -143,6 +144,8 @@ def deanonymize_weighted_directed(G,k,given_coalition):
     subG = nx.subgraph(G, coalition)
     setup_H_subgraph_directed(G, subG)
     matches = tree_search(G, subG, initial_attacker, tree_search_rec_directed)
+    if(len(matches)==0):
+        print("!!! zero matches found, this should be impossible !!!")
     if(len(matches)!=1):
         return 0
     return len(coalition_neighbors_directed(G, subG))
