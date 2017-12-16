@@ -253,7 +253,7 @@ def print_usage():
         python deanonymize.py [csv file to use] [simple|directed] random [size of coalition] [times to run]
         python deanonymize.py [csv file to use] [simple|directed] given-coalition [coalition member 1] ... [coalition member N]
         
-        NOTE: coalition must consist of a 'path' through the dataset for correctness""")
+        NOTE: coalition must strictly consist of a 'root' node and its neighbors""")
     sys.exit(0)
     
 multiple_matches_failure = False
