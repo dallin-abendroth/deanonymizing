@@ -193,25 +193,45 @@ if __name__ == "__main__":
     if(len(sys.argv)==6):
         try:
             times_to_run = int(sys.argv[5])
+            if(times_to_run<1):
+                print("Yes, you have to run at least once.")
         except:
             print_usage()
 
     if(sys.argv[2]=='simple'):
         print("--------------------------------")
         print("Running simple algorithm ",times_to_run," time(s) on dataset: ",sys.argv[1])
+        if(len(given_coalition)>0):
+            print("Using given coalition: ",given_coalition)
         print("k = ",k)
         G = get_simple_graph_from_csv(sys.argv[1])
+        results = []
         for i in range(0,times_to_run):
-            print("Deanonymized nodes: ",deanonymize_simple(G,k,given_coalition))
+            results.append(deanonymize_simple(G,k,given_coalition))
+        avg = sum(results) / float(len(results))
+        if(times_to_run>1):
+            print("avg = ",avg)
+        else:
+            print("Deanonymized nodes: ",results[0])
+        print("--------------------------------")
         sys.exit(0)
     
     if(sys.argv[2]=='directed'):
         print("--------------------------------")
         print("Running weighted, directed algorithm ",times_to_run," time(s) on dataset: ",sys.argv[1])
+        if(len(given_coalition)>0):
+            print("Using given coalition: ",given_coalition)
         print("k = ",k)
         G = get_weighted_directed_graph_from_csv(sys.argv[1])
+        results = []
         for i in range(0,times_to_run):
-            print("Deanonymized nodes: ",deanonymize_weighted_directed(G,k,given_coalition))
+            results.append(deanonymize_weighted_directed(G,k,given_coalition))
+        avg = sum(results) / float(len(results))
+        if(times_to_run>1):
+            print("avg = ",avg)
+        else:
+            print("Deanonymized nodes: ",results[0])
+        print("--------------------------------")
         sys.exit(0)
 
     print_usage()
