@@ -190,7 +190,7 @@ if __name__ == "__main__":
             print_usage()
 
     times_to_run = 1
-    if(len(sys.argv)==6):
+    if(len(sys.argv)==6 and sys.argv[3]=='random'):
         try:
             times_to_run = int(sys.argv[5])
             if(times_to_run<1):
@@ -209,7 +209,7 @@ if __name__ == "__main__":
         for i in range(0,times_to_run):
             results.append(deanonymize_simple(G,k,given_coalition))
         avg = sum(results) / float(len(results))
-        prob_success = results.count(0) / float(len(results))
+        prob_success = (len(results) - results.count(0)) / float(len(results))
         if(times_to_run>1):
             print("avg = ",avg)
             print("probability of success = ",prob_success)
@@ -229,7 +229,7 @@ if __name__ == "__main__":
         for i in range(0,times_to_run):
             results.append(deanonymize_weighted_directed(G,k,given_coalition))
         avg = sum(results) / float(len(results))
-        prob_success = results.count(0) / float(len(results))
+        prob_success = (len(results) - results.count(0)) / float(len(results))
         if(times_to_run>1):
             print("avg = ",avg)
             print("probability of success = ",prob_success)
