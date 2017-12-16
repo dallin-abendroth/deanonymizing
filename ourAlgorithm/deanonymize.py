@@ -124,6 +124,7 @@ def tree_search_rec_directed(G,H,T,candidate_node,x):
         if(x_nbr in T.H_nodes_matched()): continue
         for cand_nbr in G.successors(candidate_node):
             if(multiple_matches_failure): return
+            if(cand_nbr in T.G_nodes_matched()): continue
             if(G[candidate_node][cand_nbr]['weight']==H[x][x_nbr]['weight']
                     and degree_match(G,H,x_nbr,cand_nbr)):
                 newT = T.add(cand_nbr, x_nbr)
@@ -133,6 +134,7 @@ def tree_search_rec_directed(G,H,T,candidate_node,x):
         if(x_nbr in T.H_nodes_matched()): continue
         for cand_nbr in G.predecessors(candidate_node):
             if(multiple_matches_failure): return
+            if(cand_nbr in T.G_nodes_matched()): continue
             if(G[cand_nbr][candidate_node]['weight']==H[x_nbr][x]['weight']
                     and degree_match(G,H,x_nbr,cand_nbr)):
                 newT = T.add(cand_nbr, x_nbr)
@@ -145,8 +147,8 @@ def tree_search_rec_simple(G,H,T,candidate_node,x):
     for x_nbr in H.neighbors(x): 
         if(x_nbr in T.H_nodes_matched()): continue
         for cand_nbr in G.neighbors(candidate_node):
-            if(multiple_matches_failure 
-                    or cand_nbr in T.G_nodes_matched()): return
+            if(multiple_matches_failure): return
+            if(cand_nbr in T.G_nodes_matched()): continue
             if(degree_match(G,H,x_nbr,cand_nbr)):
                 newT = T.add(cand_nbr, x_nbr)
                 if(check_mult_matches(newT, k, newT.H_nodes_matched())): return
