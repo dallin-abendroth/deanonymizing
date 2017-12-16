@@ -162,9 +162,9 @@ def deanonymize_simple(G,k,given_coalition):
 
 def print_usage():
     print("""Usage: 
-        python file-to-graph.py [csv file to use] [simple|directed] random [size of coalition] 
-        python file-to-graph.py [csv file to use] [simple|directed] random [size of coalition] [times to run]
-        python file-to-graph.py [csv file to use] [simple|directed] given-coalition [coalition member 1] ... [coalition member N]""")
+        python deanonymize.py [csv file to use] [simple|directed] random [size of coalition] 
+        python deanonymize.py [csv file to use] [simple|directed] random [size of coalition] [times to run]
+        python deanonymize.py [csv file to use] [simple|directed] given-coalition [coalition member 1] ... [coalition member N]""")
     sys.exit(0)
     
 if __name__ == "__main__":

@@ -7,6 +7,6 @@ for alg in "simple" "directed"
 do
   for k in {1..10}
   do
-    python3 ourAlgorithm.py $CSV $alg random $k $TIMES_TO_RUN
+    python3 deanonymize.py $CSV $alg random $k $TIMES_TO_RUN
   done
 done
