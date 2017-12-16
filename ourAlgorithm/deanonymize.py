@@ -19,8 +19,8 @@ class TreeNode(object):
         if(childname not in self.children):
             child = TreeNode(childname, childmatch, self)
             self.children[childname] = child
-            return True
-        return False
+            return child
+        return self.children[childname]
     def get(self, childname):
         if(childname in self.children):
             return self.children[childname]
@@ -40,6 +40,10 @@ class TreeNode(object):
             return [self.match_in_h] + self.parent.path_to_root_h()
         else:
             return []
+    def H_nodes_matched(self):
+        return self.path_to_root_h()
+    def G_nodes_matched(self):
+        return self.path_to_root()
     def path_to_root_all(self):
         if(self.parent!=None):
             return [(self.name, self.match_in_h)] + self.parent.path_to_root_all()
@@ -74,36 +78,26 @@ def get_simple_graph_from_csv(filename):
             G.add_edges_from(edge)
     return G
 
-def subgraph_neighbors_directed(G,nodes):
-    neighbors = []
-    for node in nodes:
-        neighbors.extend(list(G.successors(node)))
-        neighbors.extend(list(G.predecessors(node)))
-    neighbors = [x for x in neighbors if x not in nodes]
-    return set(neighbors)
-
-def subgraph_neighbors_simple(G,nodes):
+def subgraph_neighbors(G,nodes):
     neighbors = []
     for node in nodes:
         neighbors.extend(list(G.neighbors(node)))
+        if(nx.is_directed(G)):
+            neighbors.extend(list(G.predecessors(node)))
     neighbors = [x for x in neighbors if x not in nodes]
     return set(neighbors)
 
-def coalition_neighbors_directed(G,coalition_nodes):
+def coalition_neighbors(G,attacker):
     neighbors = []
-    node = coalition_nodes[-1]
-    neighbors.extend(list(G.successors(node)))
-    neighbors.extend(list(G.predecessors(node)))
+    neighbors.extend(list(G.neighbors(attacker)))
+    if(nx.is_directed(G)):
+        neighbors.extend(list(G.predecessors(attacker)))
     return set(neighbors)
 
-def coalition_neighbors_simple(G,coalition_nodes):
-    node = coalition_nodes[-1]
-    return set(list(G.neighbors(node)))
-
-def make_coalition(G,attacker,k,coalition_neighbors_fn):
+def make_coalition(G,attacker,k):
     coalition = [attacker,]
     while len(coalition)<k:
-        potential_recruits = list(coalition_neighbors_fn(G, coalition))
+        potential_recruits = list(coalition_neighbors(G, attacker))
         potential_recruits = [item for item in potential_recruits if item not in coalition]
         if(len(potential_recruits)==0):
             return coalition
@@ -130,115 +124,95 @@ def extract_matches(tree,k):
             matches.append(frozenset(path))
     return set(matches)
 
-def tree_search(G,H,node,tree_search_rec_fn):
-    T = TreeNode('base','base')
-    for candidate in list(G.nodes):
-        tree_search_rec_fn(G,H,T,candidate,node) 
-    k = len(list(H.nodes))
-    return extract_matches(T,k)
-
 def digraph_neighbors(G,node):
     neighbors = []
     neighbors.extend(G.predecessors)
 
 def tree_search_rec_directed(G,H,T,candidate_node,x):
     global multiple_matches_failure
-    global matches_so_far
-    if(multiple_matches_failure):
-        return
-    x_out_degree = H.nodes[x]['orig_out_degree'] 
-    x_in_degree = H.nodes[x]['orig_in_degree'] 
-    if(G.out_degree[candidate_node]==x_out_degree # check out-degrees
-            and G.in_degree[candidate_node]==x_in_degree): # check in-degrees
-        H_nodes_matched = T.path_to_root_h()
-        G_nodes_matched = T.path_to_root()
-        if(candidate_node in G_nodes_matched
-                or x in H_nodes_matched):
-            return
-        T.add(candidate_node,x)
-        nextT = T.get(candidate_node)
-        k = len(list(H.nodes))
-        H_nodes_matched = nextT.path_to_root_h()
-        if(k == len(H_nodes_matched)):
-            matches_so_far+=1
-            if(matches_so_far>1):
-                matches = extract_matches(T.get_root(),k)
-                if(len(matches)>1):
-                    multiple_matches_failure = True
-                else:
-                    matches_so_far = 1
-            return
-        for x_nbr in H.successors(x): # check weights of out-edges
-            if(x_nbr in H_nodes_matched):
-                continue
-            for cand_nbr in G.successors(candidate_node):
-                if(multiple_matches_failure):
-                    return
-                if(G[candidate_node][cand_nbr]['weight']==H[x][x_nbr]['weight']):
-                    tree_search_rec_directed(G,H,nextT,cand_nbr,x_nbr)
-        for x_nbr in H.predecessors(x): # check weights of in-edges
-            if(x_nbr in H_nodes_matched):
-                continue
-            for cand_nbr in G.predecessors(candidate_node):
-                if(multiple_matches_failure):
-                    return
-                if(G[cand_nbr][candidate_node]['weight']==H[x_nbr][x]['weight']):
-                    tree_search_rec_directed(G,H,nextT,cand_nbr,x_nbr)
+    if(multiple_matches_failure): return
+    for x_nbr in H.successors(x): # check weights of out-edges
+        if(x_nbr in T.H_nodes_matched()): continue
+        for cand_nbr in G.successors(candidate_node):
+            if(multiple_matches_failure): return
+            if(G[candidate_node][cand_nbr]['weight']==H[x][x_nbr]['weight']
+                    and degree_match(G,H,x_nbr,cand_nbr)):
+                newT = T.add(cand_nbr, x_nbr)
+                if(check_mult_matches(newT, k, newT.H_nodes_matched())): return
+                tree_search_rec_simple(G,H,newT,candidate_node,x)
+    for x_nbr in H.predecessors(x): # check weights of in-edges
+        if(x_nbr in T.H_nodes_matched()): continue
+        for cand_nbr in G.predecessors(candidate_node):
+            if(multiple_matches_failure): return
+            if(G[cand_nbr][candidate_node]['weight']==H[x_nbr][x]['weight']
+                    and degree_match(G,H,x_nbr,cand_nbr)):
+                newT = T.add(cand_nbr, x_nbr)
+                if(check_mult_matches(newT, k, newT.H_nodes_matched())): return
+                tree_search_rec_simple(G,H,newT,candidate_node,x)
 
 def tree_search_rec_simple(G,H,T,candidate_node,x):
     global multiple_matches_failure
+    if(multiple_matches_failure): return
+    for x_nbr in H.neighbors(x): 
+        if(x_nbr in T.H_nodes_matched()): continue
+        for cand_nbr in G.neighbors(candidate_node):
+            if(multiple_matches_failure 
+                    or cand_nbr in T.G_nodes_matched()): return
+            if(degree_match(G,H,x_nbr,cand_nbr)):
+                newT = T.add(cand_nbr, x_nbr)
+                if(check_mult_matches(newT, k, newT.H_nodes_matched())): return
+                tree_search_rec_simple(G,H,newT,candidate_node,x)
+
+def tree_search(G,H,attacker, tree_search_rec_fn):
+    T = TreeNode('base','base')
+    for candidate in list(G.nodes):
+        if(degree_match(G,H,attacker,candidate)):
+            T_cand = T.add(candidate,attacker)
+            tree_search_rec_fn(G,H,T_cand,candidate,attacker) 
+    k = len(list(H.nodes))
+    return extract_matches(T,k)
+
+def degree_match(G,H,x,candidate):
+    x_degree = H.nodes[x]['orig_degree']
+    cand_degree = G.degree[candidate]
+    if(nx.is_directed(G)):
+        x_in_degree = H.nodes[x]['orig_in_degree']
+        cand_in_degree = G.in_degree[candidate]
+        return (x_degree == cand_degree
+                and x_in_degree == cand_in_degree)
+    return (x_degree == cand_degree)
+
+def check_mult_matches(T, k, matched):
+    global multiple_matches_failure
     global matches_so_far
-    if(multiple_matches_failure):
-        return
-    x_degree = H.nodes[x]['orig_degree'] 
-    if(G.degree[candidate_node]==x_degree): # check degrees
-        H_nodes_matched = T.path_to_root_h()
-        G_nodes_matched = T.path_to_root()
-        if(candidate_node in G_nodes_matched
-                or x in H_nodes_matched):
-            return
-        T.add(candidate_node,x)
-        nextT = T.get(candidate_node)
-        k = len(list(H.nodes))
-        H_nodes_matched = nextT.path_to_root_h()
-        if(k == len(H_nodes_matched)):
-            matches_so_far+=1
-            if(matches_so_far>1):
-                matches = extract_matches(T.get_root(),k)
-                if(len(matches)>1):
-                    multiple_matches_failure = True
-                else:
-                    matches_so_far = 1
-            return
-        for x_nbr in H.neighbors(x): 
-            if(x_nbr in H_nodes_matched):
-                continue
-            for cand_nbr in G.neighbors(candidate_node):
-                if(multiple_matches_failure):
-                    return
-                tree_search_rec_simple(G,H,nextT,cand_nbr,x_nbr)
+    if(k == len(matched)):
+        matches_so_far+=1
+        if(matches_so_far>1):
+            matches = extract_matches(T.get_root(),k)
+            if(len(matches)>1):
+                multiple_matches_failure = True
+            else:
+                matches_so_far = 1
+        return True
+    return False
 
-def setup_H_subgraph_directed(G, subG):
-    nx.set_node_attributes(subG, 'orig_out_degree', 0)
-    nx.set_node_attributes(subG, 'orig_in_degree', 0)
-    for node in list(subG.nodes):
-        subG.nodes[node]['orig_out_degree'] = G.out_degree[node]
-        subG.nodes[node]['orig_in_degree'] = G.in_degree[node]
-
-def setup_H_subgraph_simple(G, subG):
+def setup_H_subgraph(G, subG):
+    directed = nx.is_directed(G)
     nx.set_node_attributes(subG, 'orig_degree', 0)
+    if(directed): nx.set_node_attributes(subG, 'orig_in_degree', 0)
     for node in list(subG.nodes):
         subG.nodes[node]['orig_degree'] = G.degree[node]
+        if(directed): subG.nodes[node]['orig_in_degree'] = G.in_degree[node]
 
 def deanonymize_weighted_directed(G,k,given_coalition):
     global multiple_matches_failure
     initial_attacker = random.choice(list(G.nodes))
-    coalition = make_coalition(G, initial_attacker, k, coalition_neighbors_directed)
+    coalition = make_coalition(G, initial_attacker, k)
     if(len(given_coalition)>0):
         initial_attacker = given_coalition[0]
         coalition = given_coalition
     subG = nx.subgraph(G, coalition)
-    setup_H_subgraph_directed(G, subG)
+    setup_H_subgraph(G, subG)
     matches = tree_search(G, subG, initial_attacker, tree_search_rec_directed)
     if(len(matches)==0):
         print("!!! zero matches found, this should be impossible. Coalition below !!!")
@@ -254,17 +228,17 @@ def deanonymize_weighted_directed(G,k,given_coalition):
         print(' '.join(coalition))
     if(len(matches)!=1): # cannot deanonymize
         return 0
-    return len(subgraph_neighbors_directed(G, coalition))
+    return len(subgraph_neighbors(G, coalition))
 
 def deanonymize_simple(G,k,given_coalition):
     global multiple_matches_failure
     initial_attacker = random.choice(list(G.nodes))
-    coalition = make_coalition(G, initial_attacker, k, coalition_neighbors_simple)
+    coalition = make_coalition(G, initial_attacker, k)
     if(len(given_coalition)>0):
         initial_attacker = given_coalition[0]
         coalition = given_coalition
     subG = nx.subgraph(G,coalition)
-    setup_H_subgraph_simple(G, subG)
+    setup_H_subgraph(G, subG)
     matches = tree_search(G, subG, initial_attacker, tree_search_rec_simple)
     if(len(matches)==0):
         print("!!! zero matches found, this should be impossible. Coalition below !!!")
@@ -280,7 +254,7 @@ def deanonymize_simple(G,k,given_coalition):
         print(' '.join(coalition))
     if(len(matches)!=1): # cannot deanonymize
         return 0
-    return len(subgraph_neighbors_simple(G, coalition))
+    return len(subgraph_neighbors(G, coalition))
 
 def print_usage():
     print("""Usage: 
