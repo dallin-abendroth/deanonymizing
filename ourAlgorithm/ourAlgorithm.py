@@ -209,8 +209,10 @@ if __name__ == "__main__":
         for i in range(0,times_to_run):
             results.append(deanonymize_simple(G,k,given_coalition))
         avg = sum(results) / float(len(results))
+        prob_success = results.count(0) / float(len(results))
         if(times_to_run>1):
             print("avg = ",avg)
+            print("probability of success = ",prob_success)
         else:
             print("Deanonymized nodes: ",results[0])
         print("--------------------------------")
@@ -227,8 +229,10 @@ if __name__ == "__main__":
         for i in range(0,times_to_run):
             results.append(deanonymize_weighted_directed(G,k,given_coalition))
         avg = sum(results) / float(len(results))
+        prob_success = results.count(0) / float(len(results))
         if(times_to_run>1):
             print("avg = ",avg)
+            print("probability of success = ",prob_success)
         else:
             print("Deanonymized nodes: ",results[0])
         print("--------------------------------")
