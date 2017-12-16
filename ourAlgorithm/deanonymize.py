@@ -35,20 +35,13 @@ class TreeNode(object):
         for child in self.children:
             leaf_nodes = leaf_nodes+self.children[child].leaf_nodes()
         return leaf_nodes
-    def path_to_root_h(self):
+    def H_nodes_matched(self):
         if(self.parent!=None):
-            return [self.match_in_h] + self.parent.path_to_root_h()
+            return [self.match_in_h] + self.parent.H_nodes_matched()
         else:
             return []
-    def H_nodes_matched(self):
-        return self.path_to_root_h()
     def G_nodes_matched(self):
         return self.path_to_root()
-    def path_to_root_all(self):
-        if(self.parent!=None):
-            return [(self.name, self.match_in_h)] + self.parent.path_to_root_all()
-        else:
-            return []
     def path_to_root(self):
         if(self.parent!=None):
             return [self.name] + self.parent.path_to_root()
@@ -123,10 +116,6 @@ def extract_matches(tree,k):
         if(len(path)==k):
             matches.append(frozenset(path))
     return set(matches)
-
-def digraph_neighbors(G,node):
-    neighbors = []
-    neighbors.extend(G.predecessors)
 
 def tree_search_rec_directed(G,H,T,candidate_node,x):
     global multiple_matches_failure
