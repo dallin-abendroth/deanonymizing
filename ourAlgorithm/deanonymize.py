@@ -251,7 +251,7 @@ def print_usage():
     print("""Usage: 
         python deanonymize.py [csv file to use] [simple|directed] random [size of coalition] 
         python deanonymize.py [csv file to use] [simple|directed] random [size of coalition] [times to run]
-        python deanonymize.py [csv file to use] [simple|directed] given-coalition [coalition member 1] ... [coalition member N]
+        python deanonymize.py [csv file to use] [simple|directed] given_coalition [coalition member 1] ... [coalition member N]
         
         NOTE: coalition must strictly consist of a 'root' node and its neighbors""")
     sys.exit(0)
@@ -263,11 +263,11 @@ if __name__ == "__main__":
         print_usage()
     if(sys.argv[2] != 'simple' and sys.argv[2] != 'directed'):
         print_usage()
-    if(sys.argv[3] != 'random' and sys.argv[3] != 'given-coalition'):
+    if(sys.argv[3] != 'random' and sys.argv[3] != 'given_coalition'):
         print_usage()
 
     given_coalition = []
-    if(sys.argv[3]=='given-coalition'):
+    if(sys.argv[3]=='given_coalition'):
         member_index = 4
         while(member_index<len(sys.argv)):
             given_coalition.append(sys.argv[member_index])
