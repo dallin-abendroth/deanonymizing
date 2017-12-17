@@ -24,3 +24,7 @@ Both datasets are available in this repository as `.csv` files.
   
     NOTE: coalition must strictly consist of a 'root' node and its neighbors
 ```
+
+There is a bash script that can be run to generate results for increasing numbers of k:
+
+`ourAlgorithm/genLargeResults.sh [csv file to use] [simple|directed]` 
