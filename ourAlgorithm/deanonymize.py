@@ -123,21 +123,21 @@ def extract_matches(tree,k):
 def edge_match(G,H,x_pair,cand_pair):
     if(not nx.is_directed(G)): return True
 
-    H_has_edge = H.has_edge(x_pair)
-    H_has_edge_r = H.has_edge(reversed(x_pair))
+    H_has_edge = H.has_edge(*x_pair)
+    H_has_edge_r = H.has_edge(*reversed(x_pair))
 
-    G_has_edge = G.has_edge(cand_pair)
-    G_has_edge_r = G.has_edge(reversed(cand_pair))
+    G_has_edge = G.has_edge(*cand_pair)
+    G_has_edge_r = G.has_edge(*reversed(cand_pair))
 
     if(H_has_edge and G_has_edge):
-        if(H.get_edge_data(x_pair)['weight'] != G.get_edge_data(cand_pair)['weight']):
-            return false
+        if(H.get_edge_data(*x_pair)['weight'] != G.get_edge_data(*cand_pair)['weight']):
+            return False
     elif(not (not H_has_edge and not G_has_edge)):
         return False
 
     if(H_has_edge_r and G_has_edge_r):
-        if(H.get_edge_data(reversed(x_pair))['weight'] != G.get_edge_data(reversed(cand_pair))['weight']):
-            return false
+        if(H.get_edge_data(*reversed(x_pair))['weight'] != G.get_edge_data(*reversed(cand_pair))['weight']):
+            return False
     elif(not (not H_has_edge_r and not G_has_edge_r)):
         return False
 
@@ -155,7 +155,7 @@ def tree_search_rec(G,H,T,candidate_node,x):
                     and edge_match(G,H,(x,x_nbr),(candidate_node, cand_nbr))):
                 newT = T.add(cand_nbr, x_nbr)
                 if(check_mult_matches(newT, k, newT.H_nodes_matched())): return
-                tree_search_rec_simple(G,H,newT,candidate_node,x)
+                tree_search_rec(G,H,newT,candidate_node,x)
 
 def tree_search(G,H,attacker):
     T = TreeNode('base','base')
